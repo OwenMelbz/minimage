@@ -12,7 +12,7 @@
   },
   "homepage": "https://github.com/OwenMelbz/minimage#readme",
   "bin": {
-    "minimage": "index.js"
+    "minimage": "bin/index.js"
   },
   "dependencies": {
     "glob-all": "^3.1.0",
