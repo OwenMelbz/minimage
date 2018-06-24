@@ -5,7 +5,7 @@ const command = process.argv.pop();
 switch(command)
 {
 	case 'init':
-	return require('../init');
+		return require('../init');
 	default:
-	return require('../optimise');
+		return require('../optimise');
 }
