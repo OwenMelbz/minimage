@@ -1,6 +1,6 @@
 # 📸 Minimage
 
-Minimage is a bit different to the other optimisation tools you'll have used in the past, its main 3 differences are
+Minimage is a CLI tool to optimise raster and SVG images with a bit of a differenace, its main 3 differences are
 
 - It uses a manifest allowing you to resume stop/start at any time
 - It uses a remote optimisation system - TinyPNG
@@ -12,7 +12,7 @@ The manifest itself is a JSON collection of all the images it has processed - th
 
 Each file that is processed will have an entry in the manifest storing a hash of it, allowing us to detect if the file has changed before re-optimising, if the hash has not changed it will skip to make sure you do not loose more quality.
 
-### TinyPNG
+### Tinypng
 
 We've optied to use TinyPNG as it is much faster than running it on your local machine, it also allows you to get the latest optimisation techniques as soon as they're available without updating your local systems. It also means you only have to have Node installed on your system to use it, rather than all the optimisation binaries.
 
