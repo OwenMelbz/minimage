@@ -1,0 +1,9 @@
+{
+    "tinypng_key": "E0VZetl_rwXTx9_ILNOPYpG2YUDeo11g",
+    "paths": [
+      "./web/app/themes/kevii/assets/**/*.{png,jpg,gif,svg}",
+      "./web/app/uploads/**/*.{png,jpg,gif,svg}"
+    ],
+    "manifest": "./web/app/themes/kevii/assets/optimage-manifest.json",
+    "exclusions": []
+  }
