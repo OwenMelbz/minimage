@@ -1,0 +1,28 @@
+{
+  "name": "minimage",
+  "version": "0.0.1",
+  "description": "A CLI tool to optimise raster images with TinyPNG and SVG with SVGO",
+  "main": "optimise.js",
+  "bin": {
+    "minimage": "index.js"
+  },
+  "dependencies": {
+    "glob-all": "^3.1.0",
+    "svgo": "^1.0.5",
+    "tinify": "^1.5.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "cli",
+    "tinypng",
+    "svgo",
+    "image",
+    "optimise",
+    "optimize"
+  ],
+  "author": "Owen Melbourne",
+  "license": "MIT"
+}
