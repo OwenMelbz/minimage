@@ -6,17 +6,20 @@ Minimage is a bit different to the other optimisation tools you'll have used in 
 - It uses a remote optimisation system - TinyPNG
 - Can be run server side on cron jobs
 
-## Manifest
+### Manifest
+
 The manifest itself is a JSON collection of all the images it has processed - this should be commited to your version control to make sure other team members don't double compress images.
 
 Each file that is processed will have an entry in the manifest storing a hash of it, allowing us to detect if the file has changed before re-optimising, if the hash has not changed it will skip to make sure you do not loose more quality.
 
-## TinyPNG
+### TinyPNG
+
 We've optied to use TinyPNG as it is much faster than running it on your local machine, it also allows you to get the latest optimisation techniques as soon as they're available without updating your local systems. It also means you only have to have Node installed on your system to use it, rather than all the optimisation binaries.
 
 The downside is that the free plan only has 500 optimisations a month (svg is not included)
 
-## Server side
+### Server side
+
 As it is just a nodejs script, if you have the node binaries on your server, you can set up a cron job to run the script every day or so keep user uploaded content optimised as well.
 
 # Installation
