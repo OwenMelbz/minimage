@@ -10,7 +10,7 @@ Minimage is a CLI tool to optimise raster and SVG images with a bit of a differe
 
 The manifest itself is a JSON collection of all the images it has processed - this should be commited to your version control to make sure other team members don't double compress images.
 
-Each file that is processed will have an entry in the manifest storing a hash of it, allowing us to detect if the file has changed before re-optimising, if the hash has not changed it will skip to make sure you do not loose more quality.
+Each file that is processed will have an entry in the manifest storing a hash of it, allowing us to detect if the file has changed before re-optimising, if the hash has not changed it will skip to make sure you do not lose more quality.
 
 ### Tinypng
 
