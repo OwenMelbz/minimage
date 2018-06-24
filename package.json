@@ -3,6 +3,14 @@
   "version": "0.0.1",
   "description": "A CLI tool to optimise raster images with TinyPNG and SVG with SVGO",
   "main": "optimise.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OwenMelbz/minimage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OwenMelbz/minimage/issues"
+  },
+  "homepage": "https://github.com/OwenMelbz/minimage#readme",
   "bin": {
     "minimage": "index.js"
   },
