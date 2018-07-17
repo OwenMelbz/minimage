@@ -50,7 +50,7 @@ const minifier = function(config) {
             }
         });
 
-        U.Log(`Minimage: Found ${this.imagesInFolder.length} image(s) to in total`);
+        U.Log(`Minimage: Found ${this.imagesInFolder.length} image(s) in total`);
 
         // Clean out any strangly duplicated ones
         this.imagesInFolder.forEach(file => {
@@ -129,7 +129,7 @@ const minifier = function(config) {
         })
         .catch(err => {
             U.Log(err);
-            
+
             return this.singleOptimisationComplete(image, 'SVGO', complete);
         });
     };
