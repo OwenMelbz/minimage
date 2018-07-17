@@ -1,6 +1,6 @@
 {
   "name": "minimage",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A CLI tool to optimise raster images with TinyPNG and SVG with SVGO",
   "main": "optimise.js",
   "repository": {
