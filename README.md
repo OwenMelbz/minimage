@@ -1,6 +1,6 @@
 # 📸 Minimage
 
-Minimage is a CLI tool to optimise raster and SVG images with a bit of a differenace, its main 3 differences are
+Minimage is a CLI tool to optimise raster and SVG images with a bit of a difference, its main 3 differences are
 
 - It uses a manifest allowing you to resume stop/start at any time
 - It uses a remote optimisation system - TinyPNG
