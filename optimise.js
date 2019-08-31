@@ -5,8 +5,11 @@ const crypto = require('crypto');
 const glob = require('glob-all');
 const svgo = new (require('svgo'))({
     plugins: [
-        {cleanupIDs: false},
-        {removeHiddenElems: false}
+        { cleanupIDs: true },
+        { removeHiddenElems: false },
+        { prefixIds: true },
+        { prefixClassNames: true },
+        { removeViewBox: false },
     ]
 });
 
@@ -121,7 +124,7 @@ const minifier = function(config) {
 
         const originalXML = fs.readFileSync(image.file, 'utf8');
 
-        return svgo.optimize(originalXML)
+        return svgo.optimize(originalXML, { path: image.file })
         .then(result => {
             return fs.writeFile(image.file, result.data, () => {
                 return this.singleOptimisationComplete(image, 'SVGO', complete);
