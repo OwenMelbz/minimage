@@ -1,234 +1,226 @@
-const U = require('./utilities');
-const fs = require('fs');
+const { Log, Exception, MANIFEST_PATH, CONFIG_PATH, fs, asyncForEach } = require('./utilities');
 const tinify = require('tinify');
+const uniq = require('lodash/uniq');
+const filter = require('lodash/filter');
+const map = require('lodash/map');
+const find = require('lodash/find');
 const crypto = require('crypto');
 const glob = require('glob-all');
 const svgo = new (require('svgo'))({
     plugins: [
         { cleanupIDs: true },
-        { removeHiddenElems: false },
         { prefixIds: true },
         { prefixClassNames: true },
+        { removeHiddenElems: false },
         { removeViewBox: false },
     ]
 });
 
-if (!fs.existsSync(U.configPath())) {
-	return U.Err('Cannot find config - make sure you run "./node_modules/.bin/minimage init" first.');
+
+if (!fs.existsSync(CONFIG_PATH)) {
+    return Exception('Cannot find config - make sure you run "npx minimage init" first.');
 }
 
-if (!fs.existsSync(U.manifestPath())) {
-	return U.Err('Cannot find manifest - make sure you run "./node_modules/.bin/minimage init" first.');
+if (!fs.existsSync(MANIFEST_PATH)) {
+    return Exception('Cannot find manifest - make sure you run "npx minimage init" first.');
 }
 
-const config = U.config();
-config.manifest = U.manifestPath();
+const manifest = require(MANIFEST_PATH);
+const config = require(CONFIG_PATH);
 
-const minifier = function(config) {
-    this.config = config;
-    this.imagesToOptimise = [];
-    this.imagesInFolder = [];
-    this.currentlyOptimising = 0;
+class Processor
+{
 
-    if (fs.existsSync(this.config.manifest)) {
-        this.imageManifest = require(this.config.manifest);
-    } else {
-        this.imageManifest = [];
+    constructor(config, manifest)
+    {
+        this.config = config;
+        this.manifest = manifest;
+        this.images = [];
+        this.queue = [];
+        this.currentIndex = 0;
     }
 
-    tinify.key = this.config.tinypng_key;
+    prepareImages()
+    {
+        this.images = glob.sync(this.config.paths);
+        this.images = uniq(this.images);
+        this.images = filter(this.images, path => this.config.exclusions.indexOf(path) === -1);
 
-    this.getImages = function() {
-        let deduped = [],
-            notExcluded = [];
+        Log(`Minimage: Found ${this.images.length} image(s) in total`);
 
-        this.imagesInFolder = [];
-
-        // Fetch all the images to start with
-        this.config.paths.forEach(path => {
-            try {
-                this.imagesInFolder = this.imagesInFolder.concat(glob.sync(path));
-            } catch (err) {
-                U.Err(err);
-            }
+        this.queue = map(this.images, path => {
+            return this.parsePath(path);
         });
 
-        U.Log(`Minimage: Found ${this.imagesInFolder.length} image(s) in total`);
+        this.queue = filter(this.queue, file => {
+            const previous = find(this.manifest, f => f.path === file.path);
 
-        // Clean out any strangly duplicated ones
-        this.imagesInFolder.forEach(file => {
-            if (deduped.indexOf(file) === -1) {
-                deduped.push(file);
+            if (!previous) {
+                return true;
             }
+
+            if (previous.hash !== file.hash) {
+                return true;
+            }
+
+            return false;
         });
 
-        this.imagesInFolder = deduped;
+        Log(`Minimage: Found ${this.queue.length} new/updated image(s) to compress`);
 
-        // Remove any from the exclusions
-        this.imagesInFolder.forEach(file => {
-            if (config.exclusions.indexOf(file) === -1) {
-                notExcluded.push(file);
-            }
-        });
+        return this;
+    }
 
-        this.imagesInFolder = notExcluded;
+    parsePath(path)
+    {
+        const data = fs.readFileSync(path);
 
-        // Check against the image manifest to see if it needs re-optimising
-        this.imagesInFolder.forEach(file => {
-            let map = this.getHashMap(file),
-                addIt = true;
-
-            this.imageManifest.forEach(prev => {
-                if (prev.file == file && map.hash !== prev.hash) {
-                    map.needsUpdate = true;
-                } else if (prev.file == file && map.hash === prev.hash) {
-                    addIt = false;
-                }
-            });
-
-            if (addIt) {
-                this.imagesToOptimise.push(map);
-            }
-        });
-
-        U.Log(`Minimage: Found ${this.imagesToOptimise.length} image(s) to compress`);
-
-        return this.imagesToOptimise;
-    };
-
-    this.getHashMap = function(file) {
-        let data = fs.readFileSync(file),
-            hash = crypto
-                .createHash('md5')
-                .update(data, 'utf8')
-                .digest('hex');
+        const hash = crypto
+            .createHash('md5')
+            .update(data, 'utf8')
+            .digest('hex');
 
         return {
+            path,
+            hash,
             size: data.length / 1000 + 'kb',
-            hash: hash,
-            file: file,
-            needsUpdate: false,
         };
     };
 
-    this.tinyPNG = function(image, complete) {
-        U.Log(`TinyPNG: Compressing ${image.file}`);
+    async startOptimising(callback)
+    {
+        const item = this.queue[this.currentIndex];
 
-        return tinify.fromFile(image.file).toFile(image.file, () => {
-            return this.singleOptimisationComplete(image, 'TinyPNG', complete);
-        });
-    };
-
-    this.SVGO = function(image, complete) {
-        U.Log(`SVGO: Optimising ${image.file}`);
-
-        const originalXML = fs.readFileSync(image.file, 'utf8');
-
-        return svgo.optimize(originalXML, { path: image.file })
-        .then(result => {
-            return fs.writeFile(image.file, result.data, () => {
-                return this.singleOptimisationComplete(image, 'SVGO', complete);
-            });
-        })
-        .catch(err => {
-            U.Log(err);
-
-            return this.singleOptimisationComplete(image, 'SVGO', complete);
-        });
-    };
-
-    this.singleOptimisationComplete = function(image, toolName, complete) {
-        let newMap = this.getHashMap(image.file);
-
-        U.Log(`${toolName}: Reduced from ${image.size} to ${newMap.size}`);
-
-        if (image.needsUpdate) {
-            this.imageManifest.forEach((old, key) => {
-                if (old.file == image.file) {
-                    this.imageManifest[key] = newMap;
-                }
-            });
-        } else {
-            this.imageManifest.push(newMap);
-        }
-
-        return this.saveManifest(this.imageManifest, () => {
-            this.currentlyOptimising++;
-            this.optimiseNow(complete);
-        });
-    };
-
-    this.optimiseNow = function(complete) {
-        let image = this.imagesToOptimise[this.currentlyOptimising];
-
-        if (!image) {
-            U.Log('Minimage: All images processed');
-            return complete();
-        }
-
-        // Bitmap or SVG?
-        if (image.file.indexOf('.svg') !== -1) {
-            return this.SVGO(image, complete);
-        }
-
-        return this.tinyPNG(image, complete);
-    };
-
-    this.saveManifest = function(manifest, callback = null) {
-        return fs.writeFile(this.config.manifest, JSON.stringify(manifest, null, 4), err => {
-            return callback ? callback() : null;
-        });
-    };
-
-    this.tidyManifest = function() {
-        let cleanManifest = [];
-        const fileLength = this.imagesInFolder.length;
-        const manifestLength = this.imageManifest.length;
-
-        if (manifestLength > fileLength) {
-            U.Log(
-                `Minimage: Manifest contains ${manifestLength} images, folders only contain ${fileLength} - cleaning manifest`
-            );
-        }
-
-        this.imageManifest.forEach(image => {
-            if (this.imagesInFolder.indexOf(image.file) !== -1) {
-                if (cleanManifest.indexOf(image) === -1) {
-                    cleanManifest.push(image);
-                }
-            }
+        await asyncForEach(this.queue, async item => {
+            await this.optimiseItem(item)
+            await this.updateManifest(item)
         });
 
-        //Only use this method if we're rebuilding
-        //the manifest from file system.
-        this.imagesInFolder.forEach(path => {
-            cleanManifest.push(this.getHashMap(path));
-        });
+        Log('Minimage: All images processed');
 
-        return this.saveManifest(cleanManifest);
-    };
+        this.cleanupManifest();
 
-    this.start = function() {
-        this.getImages();
-        this.optimiseNow(() => {
-            this.tidyManifest(() => {
-                U.Log(`Minimage: ${this.currentlyOptimising} image(s) compressed`);
-            });
-        });
-    };
-};
-
-const processor = new minifier(config);
-
-U.Log('TinyPNG: Connecting...');
-
-tinify.validate(function(err) {
-    if (err) {
-        throw err;
+        return this;
     }
 
+    optimiseItem(item)
+    {
+        if (item.path.indexOf('.svg') !== -1) {
+            return this.optimiseSvg(item);
+        }
+
+        return this.optimiseBitmap(item);
+    }
+
+    optimiseSvg({ path })
+    {
+        return new Promise(async (done, failed) => {
+            Log(`SVGO: Optimising ${path}`);
+
+            try {
+                const originalXML = fs.readFileSync(path, 'utf8');
+                const { data } = await svgo.optimize(originalXML, { path })
+
+                fs.writeFile(path, data, () => done(path));
+            } catch (error) {
+                Log(error)
+
+                return failed(path);
+            }
+        })
+    }
+
+    optimiseBitmap({ path })
+    {
+        return new Promise((done, failed) => {
+            try {
+                Log(`TinyPNG: Compressing ${path}`);
+                tinify.fromFile(path).toFile(path, () => done(path))
+            } catch (error) {
+                Log(error)
+
+                return failed(path);
+            }
+        })
+    }
+
+    updateManifest({ path, size })
+    {
+        return new Promise(async (done, failed) => {
+            const file = this.parsePath(path)
+            const previous = find(this.manifest, f => f.path === file.path);
+
+            const toolName = path.indexOf('.svg') === -1 ? 'TinyPNG' : 'SVGO';
+
+            Log(`${toolName}: Reduced from ${size} to ${file.size}`);
+
+            if (!previous) {
+                this.manifest.push(file);
+            } else {
+                Object.assign(previous, file);
+            }
+
+            try {
+                await this.saveManifest(path);
+
+                return done(path);
+            } catch (e) {
+                Log(error);
+
+                return failed(path);
+            }
+        })
+    }
+
+    async cleanupManifest()
+    {
+        if (this.images.length === this.manifest.length) {
+            return this;
+        }
+
+        Log(`Minimage: Manifest contains ${this.manifest.length} files - but only ${this.images.length} images exist - Cleaning manifest now`);
+
+        this.manifest = filter(this.manifest, file => {
+            return find(this.images, f => f === file.path);
+        })
+
+        await this.saveManifest()
+
+        Log('Minimage: Manifest cleaned 👍')
+    }
+
+    saveManifest(data)
+    {
+        return new Promise((done, failed) => {
+            fs.writeFile(MANIFEST_PATH, JSON.stringify(this.manifest, null, 4), error => {
+                if (error) {
+                    Log(error);
+                    return failed(data);
+                }
+
+                return done(data);
+            });
+        })
+    }
+
+    finish()
+    {
+        Log(`Minimage: ${this.queue.length} image(s) successfully optimised`);
+
+        return this;
+    }
+
+}
+
+Log('TinyPNG: Connecting...');
+
+tinify.key = config.tinypng_key;
+
+tinify.validate(err => {
+    if (err) throw err;
+
     if (tinify.compressionCount >= 500) {
-        return U.Err(
+        return Exception(
             `TinyPNG: You've used ${
                 tinify.compressionCount
             } compressions up - define a new api key for more`
@@ -236,8 +228,12 @@ tinify.validate(function(err) {
     } else {
         let left = 500 - tinify.compressionCount;
 
-        U.Log(`TinyPNG: ${left} compressions left this month`);
+        Log(`TinyPNG: ${left} compressions left this month`);
     }
 
-    return processor.start();
+    const processor = new Processor(config, manifest)
+
+    processor
+        .prepareImages()
+        .startOptimising();
 });
