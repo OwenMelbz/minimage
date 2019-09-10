@@ -89,11 +89,10 @@ class Processor
 
     async startOptimising(callback)
     {
-        const item = this.queue[this.currentIndex];
-
         await asyncForEach(this.queue, async item => {
-            await this.optimiseItem(item)
-            await this.updateManifest(item)
+            this.currentIndex++;
+            await this.optimiseItem(item);
+            await this.updateManifest(item);
         });
 
         Log('Minimage: All images processed');
@@ -115,7 +114,7 @@ class Processor
     optimiseSvg({ path })
     {
         return new Promise(async (done, failed) => {
-            Log(`SVGO: Optimising ${path}`);
+            Log(`SVGO: Optimising ${path} :: ${this.currentIndex}/${this.queue.length}`);
 
             try {
                 const originalXML = fs.readFileSync(path, 'utf8');
@@ -134,7 +133,7 @@ class Processor
     {
         return new Promise((done, failed) => {
             try {
-                Log(`TinyPNG: Compressing ${path}`);
+                Log(`TinyPNG: Compressing ${path} :: ${this.currentIndex}/${this.queue.length}`);
                 tinify.fromFile(path).toFile(path, () => done(path))
             } catch (error) {
                 Log(error)
