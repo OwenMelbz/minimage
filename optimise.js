@@ -231,7 +231,7 @@ class Processor
 
 Log('TinyPNG: Connecting...');
 
-tinify.key = config.tinypng_key;
+tinify.key = process.env.TINYPNG_KEY || config.tinypng_key;
 
 tinify.validate(err => {
     if (err) throw err;
