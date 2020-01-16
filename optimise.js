@@ -55,7 +55,7 @@ class Processor
         Log(`Minimage: Found ${this.images.length} image(s) in total`);
 
         this.queue = map(this.images, path => {
-            return this.parsePath(path);
+            return this.parsePath(path, true);
         });
 
         this.queue = filter(this.queue, file => {
@@ -82,7 +82,7 @@ class Processor
         return this;
     }
 
-    parsePath(path)
+    parsePath(path, allowConditions)
     {
         const data = fs.readFileSync(path);
 
@@ -91,17 +91,22 @@ class Processor
             .update(data, 'utf8')
             .digest('hex');
 
-        const sizeInKb = data.length / 1000;
+        const sizeInKb = Math.ceil(data.length / 1000);
 
-        if (sizeInKb <= this.config.compress_if_larger_than_in_kb) {
-            Log(`Minimage: Skipped ${path} as only ${sizeInKb}kb which is smaller than ${this.config.compress_if_larger_than_in_kb}kb`);
-            return null;
+        // Everything inside here is allowed to reject the file.
+        if (allowConditions) {
+
+            // Only allow in files of the correct size.
+            if (sizeInKb <= this.config.compress_if_larger_than_in_kb) {
+                Log(`Minimage: Skipped ${path} as only ${sizeInKb}KB which is smaller than ${this.config.compress_if_larger_than_in_kb}KB`);
+                return null;
+            }
         }
 
         return {
             path,
             hash,
-            size: `${sizeInKb}kb`,
+            size: `${sizeInKb}KB`,
         };
     };
 
