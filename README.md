@@ -45,7 +45,8 @@ module.exports = {
       "./web/assets/**/*.{png,jpg,gif,svg}",
       "./web/uploads/**/*.{png,jpg,gif,svg}",
     ],
-    "exclusions": []
+    "exclusions": [],
+    "compress_if_larger_than_in_kb": 0
   }
 ```
 - Add your TinyPNG key to the config which you can get from https://tinypng.com/developers
@@ -55,6 +56,12 @@ module.exports = {
 # Usage
 
 Once installed you should simply run `npx minimage` and it will process your images one by one.
+
+> There might be times that you want to pass the API key in via the CLI rather than the config, this can be done by defining the environment variable before running the script.
+
+```
+TINYPNG_KEY=XXXXXXXXXXXXXXXXXXXXX npx minimage
+```
 
 # Upgrading from V1
 

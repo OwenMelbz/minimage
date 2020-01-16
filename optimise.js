@@ -28,6 +28,11 @@ if (!fs.existsSync(MANIFEST_PATH)) {
 const manifest = require(MANIFEST_PATH);
 const config = require(CONFIG_PATH);
 
+// Adds backwards support for configs without "compress_if_larger_than_in_kb"
+if (!('compress_if_larger_than_in_kb' in config)) {
+    config.compress_if_larger_than_in_kb = 0;
+}
+
 class Processor
 {
 
@@ -42,6 +47,7 @@ class Processor
 
     prepareImages()
     {
+        Log(`Minimage: Scanning ${this.config.paths.length} directories for files...`);
         this.images = glob.sync(this.config.paths);
         this.images = uniq(this.images);
         this.images = filter(this.images, path => this.config.exclusions.indexOf(path) === -1);
@@ -53,6 +59,11 @@ class Processor
         });
 
         this.queue = filter(this.queue, file => {
+            // It's normally null if the file has been skipped during this.parsePath();
+            if (!file) {
+                return false;
+            }
+
             const previous = find(this.manifest, f => f.path === file.path);
 
             if (!previous) {
@@ -80,14 +91,21 @@ class Processor
             .update(data, 'utf8')
             .digest('hex');
 
+        const sizeInKb = data.length / 1000;
+
+        if (sizeInKb <= this.config.compress_if_larger_than_in_kb) {
+            Log(`Minimage: Skipped ${path} as only ${sizeInKb}kb which is smaller than ${this.config.compress_if_larger_than_in_kb}kb`);
+            return null;
+        }
+
         return {
             path,
             hash,
-            size: data.length / 1000 + 'kb',
+            size: `${sizeInKb}kb`,
         };
     };
 
-    async startOptimising(callback)
+    async startOptimising()
     {
         await asyncForEach(this.queue, async item => {
             this.currentIndex++;
@@ -118,11 +136,11 @@ class Processor
 
             try {
                 const originalXML = fs.readFileSync(path, 'utf8');
-                const { data } = await svgo.optimize(originalXML, { path })
+                const { data } = await svgo.optimize(originalXML, { path });
 
                 fs.writeFile(path, data, () => done(path));
             } catch (error) {
-                Log(error)
+                Log(error);
 
                 return failed(path);
             }
@@ -136,7 +154,7 @@ class Processor
                 Log(`TinyPNG: Compressing ${path} :: ${this.currentIndex}/${this.queue.length}`);
                 tinify.fromFile(path).toFile(path, () => done(path))
             } catch (error) {
-                Log(error)
+                Log(error);
 
                 return failed(path);
             }
@@ -146,7 +164,7 @@ class Processor
     updateManifest({ path, size })
     {
         return new Promise(async (done, failed) => {
-            const file = this.parsePath(path)
+            const file = this.parsePath(path);
             const previous = find(this.manifest, f => f.path === file.path);
 
             const toolName = path.indexOf('.svg') === -1 ? 'TinyPNG' : 'SVGO';
@@ -181,9 +199,9 @@ class Processor
 
         this.manifest = filter(this.manifest, file => {
             return find(this.images, f => f === file.path);
-        })
+        });
 
-        await this.saveManifest()
+        await this.saveManifest();
 
         Log('Minimage: Manifest cleaned 👍')
     }
@@ -230,7 +248,7 @@ tinify.validate(err => {
         Log(`TinyPNG: ${left} compressions left this month`);
     }
 
-    const processor = new Processor(config, manifest)
+    const processor = new Processor(config, manifest);
 
     processor
         .prepareImages()
