@@ -25,7 +25,7 @@ if (fs.existsSync(manifestOutout)) {
 } else {
 	fs.copyFileSync(manifestStub, manifestOutout);
 	Log(`Manifest generated @ ${manifestOutout}`);
-	Log('Please edit the minimage.comfig.js to update your paths and API keys - You can get an API key from https://tinypng.com/developers');
+	Log('Please edit the minimage.config.js to update your paths and API keys - You can get an API key from https://tinypng.com/developers');
 }
 
 
