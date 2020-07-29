@@ -113,9 +113,14 @@ class Processor
     async startOptimising()
     {
         await asyncForEach(this.queue, async item => {
-            this.currentIndex++;
-            await this.optimiseItem(item);
-            await this.updateManifest(item);
+            try {
+                this.currentIndex++;
+                await this.optimiseItem(item);
+                await this.updateManifest(item);
+            } catch (error) {
+                Exception(error);
+                return process.exit(1);
+            }
         });
 
         Log('Minimage: All images processed');
@@ -157,7 +162,7 @@ class Processor
         return new Promise((done, failed) => {
             try {
                 Log(`TinyPNG: Compressing ${path} :: ${this.currentIndex}/${this.queue.length}`);
-                tinify.fromFile(path).toFile(path, () => done(path))
+                tinify.fromFile(path).toFile(path, error => error ? failed(error.message) : done(path))
             } catch (error) {
                 Log(error);
 
@@ -186,7 +191,7 @@ class Processor
                 await this.saveManifest(path);
 
                 return done(path);
-            } catch (e) {
+            } catch (error) {
                 Log(error);
 
                 return failed(path);

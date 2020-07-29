@@ -8,7 +8,7 @@ const Log = function () {
     return console.log('📸 ', ...arguments)
 }
 
-const Exception = error => console.error('📸 \x1b[31m%s\x1b[0m', error);
+const Exception = error => console.error('📸 \x1b[31m%s\x1b[0m', ` ${error}`);
 
 const asyncForEach = async function (array, callback) {
     for (let index = 0; index < array.length; index++) {
